@@ -20,8 +20,9 @@ class LogHandler:
     LOG_FILEPROGRESS = 1
     LOG_CLIENTCONNECTION = 2
     LOG_FILELIST = 3
+    LOG_SERVER = 4
 
-    LOG_NAMES = ("fileprogress", "clientconnection", "filelist")
+    LOG_NAMES = ("fileprogress", "clientconnection", "filelist", "server")
 
     def __init__(self, log_type=None):
         if log_type:
@@ -33,6 +34,8 @@ class LogHandler:
                 elif log_type == self.LOG_CLIENTCONNECTION:
                     log_instances[self.LOG_NAMES[log_type-1]] = \
                         ClientConnectionLogger()
+                elif log_type == self.LOG_SERVER:
+                    log_instances[self.LOG_NAMES[log_type-1]] = ServerLogger()
                 else:
                     log_instances[self.LOG_NAMES[log_type-1]] = FileListLogger()
                 self.log_instance = log_instances[self.LOG_NAMES[log_type-1]]
@@ -77,6 +80,9 @@ def get_log_path():
 class ClientAlreadyExists(Exception):
     pass
 
+class ServerNameSet(Exception):
+    pass
+
 class Logger:
     LOG_DIR = ".pclt_logs"
 
@@ -109,9 +115,9 @@ class Logger:
                 return True
         return False
 
-    def get_file_entry(self,document, file_name):
-        for node in document.iter("file_entry"):
-            if node[0].text == file_name:
+    def get_file_entry(self,document, file_name, element_name, element_pos):
+        for node in document.iter(element_name):
+            if node[element_pos].text == file_name:
                 return node
 
     # class specific code
@@ -175,7 +181,7 @@ class FileProgressLogger(Logger):
             new_entry_dest.text = kwargs['dest_path']
 
         else:
-            file_node = self.get_file_entry(self.xml_root, kwargs['file_name'])
+            file_node = self.get_file_entry(self.xml_root, kwargs['file_name'], "file_entry", 0)
             file_node[3].text = str(kwargs['transferred'])
 
         with open(self.path_builder(), "w") as xml_file:
@@ -230,7 +236,9 @@ class ClientConnectionLogger(Logger):
             new_entry_name = SubElement(new_entry, "opened_conn")
             new_entry_name.text = "True"
         else:
-            raise ClientAlreadyExists()
+            client_node = self.get_file_entry(self.xml_root, kwargs['client_addr'], "client", 0)
+            client_node[0].text = str(kwargs['client_addr'])
+            client_node[1].text = str(kwargs['client_port'])
 
         with open(self.path_builder(), "w") as xml_file:
             xml_file.write(self.get_xml(self.xml_root))
@@ -299,12 +307,40 @@ class FileListLogger(Logger):
                 root_node = root
                 break
 
-        for file in root_node.iter("file"):
-            file_list.append(file)
+        if root_node:
+            for file in root_node.iter("file"):
+                file_list.append(file.text)
 
-        dest_dir = root_node.get('dest')
+            dest_dir = root_node.get('dest')
 
-        return file_list, dest_dir
+            return file_list, dest_dir
+        else:
+            return None
+
+class ServerLogger(Logger):
+    def __init__(self, log_name="server.xml"):
+        super().__init__(log_name)
+
+    def write_log(self, *args, **kwargs):
+        if not self.find_element_data(self.xml_root, 'set', 'set'):
+            new_entry = SubElement(self.xml_root, "server")
+            server_set = SubElement(new_entry, "set")
+            server_set.text = "set"
+            server_hash = SubElement(new_entry, "hash")
+            server_hash.text = kwargs['hash']
+        elif kwargs['override']:
+            client_node = self.get_file_entry(self.xml_root, kwargs['hash'], "server", 0)
+            client_node[0].text = str(kwargs['hash'])
+        else:
+            raise ServerNameSet()
+
+        with open(self.path_builder(), "w") as xml_file:
+            xml_file.write(self.get_xml(self.xml_root))
+
+    def get_hash(self):
+        for root in self.xml_root.iter("server"):
+            return root[1].text
+
 
 class UserLogger:
     pass

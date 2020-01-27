@@ -15,6 +15,7 @@ class ServerWidgetManager(QVBoxLayout):
     server = None
     stretched = False
     _parent = None
+    username = None
     def __init__(self, parent, srv):
         super().__init__(parent)
         self._parent = parent
@@ -34,7 +35,7 @@ class ServerWidgetManager(QVBoxLayout):
         name_edit = QLineEdit()
 
         username = getpass.getuser()
-        username = F"{username}_server"
+        self.username = F"{username}_server"
 
         name_edit.setText(username)
 
@@ -68,7 +69,7 @@ class ServerWidgetManager(QVBoxLayout):
     def manage_server(self, name, port):
         deleteLayout(self)
 
-        self.server.open_server()
+        self.server.open_server(self.username)
 
         info_layout = QVBoxLayout()
         info_layout.addWidget(QLabel(F"Server Name: {name}"))

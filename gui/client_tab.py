@@ -4,8 +4,10 @@ from PyQt5.QtWidgets import QPushButton, QWidget, QAction, QTabWidget, \
 from PyQt5.QtGui import QIcon, QPixmap
 
 from gui.network_widget import NetworkFolderManager
+from gui.reconnect_dialog import ReconnectDialog
 from utils.gui_functions import deleteLayout
 from client import FailedToConnect
+from loghandler import ClientAlreadyExists
 
 class ClientTabManager(QWidget):
 
@@ -44,6 +46,8 @@ class ClientTabManager(QWidget):
         self.client_layout.addWidget(self.client_tabs)
         self.setLayout(self.client_layout)
 
+
+
     def connect(self, ip, port, layout):
         #old_layout = copy.deepcopy(layout)
         deleteLayout(layout)
@@ -57,12 +61,23 @@ class ClientTabManager(QWidget):
             layout.addWidget(NetworkFolderManager(self, self.client))
         except FailedToConnect as e:
             msg = QMessageBox()
-            msg.setIcon(QMessageBox.Information)
+            msg.setIcon(QMessageBox.Error)
             msg.setText("Connection Failed!")
             msg.setInformativeText(str(e))
             msg.setWindowTitle("Connection info")
             msg.exec_()
             self.setup_tab(layout)
+
+        except ClientAlreadyExists as e:
+            msg = ReconnectDialog()
+            msg.exec_();
+            """msg = QMessageBox()
+            msg.setIcon(QMessageBox.Information)
+            msg.setText("Connection Failed!")
+            msg.setInformativeText(str(e))
+            msg.setWindowTitle("Connection info")
+            msg.exec_()
+            self.setup_tab(layout)"""
 
     def setup_tab(self, tab_widget):
         tab1_layout = QVBoxLayout()

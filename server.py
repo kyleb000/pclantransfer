@@ -9,6 +9,9 @@ import traceback
 import os
 import pathlib
 import hashlib
+from loghandler import LogHandler, ServerNameSet
+import random
+import string
 
 # TODO: put a number before all paths to let the client determine if it's a folder, file or symlink
 # TODO: Log the roots for when the program has to recover from a previous session
@@ -27,8 +30,24 @@ class FileServer:
     closer_thread = None
     run = True
     close_run = True
+    logger = None
+    server_name = activity.server_name
 
-    def open_server(self):
+    def open_server(self, name=""):
+
+        self.logger = LogHandler(log_type=LogHandler.LOG_SERVER)
+
+        try:
+            server_hash = name + ':' + ''.join(random.SystemRandom().choice( \
+                                      string.ascii_uppercase + \
+                                      string.digits + \
+                                      string.ascii_lowercase \
+                                  )for _ in range(11))
+            self.logger.write_to_log(hash=server_hash, override=False)
+            self.server_name[0] = server_hash
+        except ServerNameSet:
+            self.server_name[0] = self.logger.log_instance.get_hash()
+
         self.run = True
         self.close_run = True
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

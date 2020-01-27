@@ -59,7 +59,7 @@ class ClientManager:
         self.progress_logger = LogHandler(log_type=LogHandler.LOG_FILEPROGRESS)
         self.list_logger = LogHandler(log_type=LogHandler.LOG_FILELIST)
 
-    def reestablish_connections(self):
+    def reestablish_connection(self, hash):
         connections = self.client_logger.log_instance.get_clients()
         failed_connections = []
         for conn in connections:
@@ -90,32 +90,32 @@ class ClientManager:
 
     def connect_to_server(self, address, port=10031, hash=None, new_conn=True):
         try:
-            if not hash:
-                client_hash = ''.join(random.SystemRandom().choice( \
-                                          string.ascii_uppercase + \
-                                          string.digits + \
-                                          string.ascii_lowercase \
-                                      )for _ in range(11))
-            else:
+            client_hash = None
+            if hash:
                 client_hash = hash
-            temp_addr = ((address, port), client_hash)
-            if temp_addr[0] in [i[0] for i in self.clients]:
+
+            if (address, port) in [i[0] for i in self.clients]:
                 raise FailedToConnect("connection already established")
-
-
-            if new_conn:
-                self.client_logger.write_to_log(client_addr=temp_addr[0][0], \
-                                 client_port=temp_addr[0][1], \
-                                 client_hash=temp_addr[1])
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(10)
-            sock.connect(temp_addr[0])
+            sock.connect((address, port))
             sock.settimeout(None)
+            if not hash:
+                sock.send(F"{NetworkActivity.SERVER_NAME}".encode())
+                sock.recv(1024)
+                sock.send(b"{\"blank\": \"0\"}")
+                client_hash = sock.recv(1024000).decode()
             sock.close()
+
+            temp_addr = ((address, port), client_hash)
 
             self.current_client = temp_addr
             self.clients.append(self.current_client)
+
+            self.client_logger.write_to_log(client_addr=temp_addr[0][0], \
+                    client_port=temp_addr[0][1], \
+                    client_hash=temp_addr[1])
 
         except socket.timeout:
             raise FailedToConnect("timed out")
@@ -146,7 +146,7 @@ class ClientManager:
         #request file data
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect(client[0])
-        client_socket.send("{0}".format(NetworkActivity.FILE_DATA).encode())
+        client_socket.send(F"{NetworkActivity.FILE_DATA}".encode())
         client_socket.recv(1024)
         client_socket.send(json.dumps({"file": orig_path, "pos": pos}).encode())
 
@@ -172,7 +172,7 @@ class ClientManager:
                 client_conn=client[1]                               \
             )
             data = client_socket.recv(1024000)
-            #input("::")
+            input("::")
             log_pos += len(data)
 
         new_file.close()
@@ -193,9 +193,8 @@ class ClientManager:
             # fetch list of files from server
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client_socket.connect(client[0])
-            client_socket.send("{0}".format(                    \
-                NetworkActivity.ROOT_SUBDIR_RECURSIVE).encode() \
-            )
+            client_socket.send(F"{NetworkActivity.ROOT_SUBDIR_RECURSIVE}" \
+                                                 .encode())
             client_socket.recv(1024)
             client_socket.send(json.dumps({"file": orig_path[2:]}).encode())
             data = client_socket.recv(1024000)
@@ -257,7 +256,7 @@ class ClientManager:
     def get_directory_contents(self, directory):
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect(self.current_client[0])
-        client_socket.send("{0}".format(NetworkActivity.ROOT_SUBDIR).encode())
+        client_socket.send(F"{NetworkActivity.ROOT_SUBDIR}".encode())
         client_socket.recv(1024)
         client_socket.send(json.dumps({"file": directory}).encode())
         data = client_socket.recv(1024000)
@@ -268,7 +267,7 @@ class ClientManager:
     def get_roots(self):
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect(self.current_client[0])
-        client_socket.send("{0}".format(NetworkActivity.ROOTS).encode())
+        client_socket.send(F"{NetworkActivity.ROOTS}".encode())
         client_socket.recv(1024)
         client_socket.send(b"{\"blank\": \"0\"}")
         data = client_socket.recv(1024000)

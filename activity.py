@@ -14,6 +14,7 @@ opened_files = {}
 
 roots = []
 root_parents = {}
+server_name = ["None"]
 
 #decodes and returns a dictionary from a given bytes string
 def get_list_from_json(raw_data):
@@ -150,6 +151,7 @@ class NetworkActivity:
     DATA_RECEIVED = 5
     TRANSFER_FAILED = 6
     ROOTS = 7
+    SERVER_NAME = 8
 
     #extracts information from a file and sends it to the client
     def get_file_info(self, client, arguments):
@@ -211,13 +213,20 @@ class NetworkActivity:
 
     #sends all roots of the server to the client
     def get_roots(self, client, arguments):
+        if not len(roots):
+            client.send(b"No roots")
         client.send("/::/".join(roots).encode())
+
+    def get_server_name(self, client, arguments):
+        client.send(server_name[0].encode())
 
     #determine what the client wants to do and return the appropriate function
     #to complete the task
     def activity_function_factory(self, activity):
         if activity == self.ROOTS:
             return self.get_roots
+        if activity == self.SERVER_NAME:
+            return self.get_server_name
         if activity == self.FILE_INFO:
             return self.get_file_info
         if activity == self.ROOT_SUBDIR:

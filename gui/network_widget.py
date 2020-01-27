@@ -3,6 +3,9 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, \
 from PyQt5.QtGui import QIcon, QPixmap
 from utils.gui_functions import deleteLayout
 from gui.file_entry_label import FileEntryLabel
+from gui.yorn_dialog import YorNDialog
+from loghandler import LogHandler
+import threading
 
 class NetworkFolderManager(QWidget):
     def __init__(self, parent, client):
@@ -12,6 +15,25 @@ class NetworkFolderManager(QWidget):
         root_layout = QVBoxLayout()
 
         self.roots = self.client.get_roots()
+
+        list_logger = LogHandler(LogHandler.LOG_FILELIST)
+        prog_logger = LogHandler(LogHandler.LOG_FILEPROGRESS)
+
+        file_progress = prog_logger.log_instance.get_outstanding_files(self.client.current_client[1])
+        file_list = list_logger.log_instance.get_file_list(self.client.current_client[1])
+
+        if file_progress or file_list:
+            dlg = YorNDialog(self, "There are files that have not yet been copied\nWould you like to copy them?")
+            if dlg.get_response():
+
+                if file_progress:
+                    print(file_progress)
+
+                if file_list:
+                    print(file_list)
+
+            else:
+                print("Deleting old logs")
 
         root_list = self.roots.split('/::/')
 
