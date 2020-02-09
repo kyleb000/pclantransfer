@@ -4,7 +4,8 @@ import select
 import json
 import time
 import activity
-from activity import NetworkActivity, get_list_from_json
+from activity import NetworkActivity
+from utils.str_functions import get_list_from_json
 import traceback
 import os
 import pathlib
@@ -12,6 +13,7 @@ import hashlib
 from loghandler import LogHandler, ServerNameSet
 import random
 import string
+import constants
 
 # TODO: put a number before all paths to let the client determine if it's a folder, file or symlink
 # TODO: Log the roots for when the program has to recover from a previous session
@@ -127,7 +129,8 @@ class FileServer:
                 par_hash = F"1-{par_hash}"
 
             self.root_parents[par_hash.split('-')[1]] = par_dir
-            new_root = F"{par_hash}/{os.path.basename(root)}"
+            new_root = \
+                F"{par_hash}{constants.GENERIC_PATH}{os.path.basename(root)}"
             if new_root not in self.roots:
                 self.roots.append(new_root)
         else:

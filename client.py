@@ -1,4 +1,5 @@
-from activity import NetworkActivity, get_list_from_json, hash_file, \
+from activity import NetworkActivity
+from utils.str_functions import get_list_from_json, hash_file, \
     get_real_path, get_generic_path
 import json
 import socket
@@ -11,6 +12,9 @@ import traceback
 from xml.dom.minidom import parse
 import xml.dom.minidom
 from loghandler import LogHandler, ClientAlreadyExists
+import constants
+from utils.str_functions import str_diff
+from pathlib import Path
 import constants
 
 def get_file_info_helper(file_name, client):
@@ -55,7 +59,10 @@ class ClientManager:
         return func_wrapper
 
     def __init__(self):
-        self.client_logger = LogHandler(log_type=LogHandler.LOG_CLIENTCONNECTION)
+        self.client_logger = LogHandler               \
+        (                                             \
+            log_type=LogHandler.LOG_CLIENTCONNECTION  \
+        )
         self.progress_logger = LogHandler(log_type=LogHandler.LOG_FILEPROGRESS)
         self.list_logger = LogHandler(log_type=LogHandler.LOG_FILELIST)
 
@@ -79,12 +86,19 @@ class ClientManager:
             file_info = self.progress_logger.get_outstanding_files(conns[1])
 
             if len(file_info):
-                self.fetch_file_data(conns, file_info[4], file_info[5], file_info[4], file_info[3])
+                self.fetch_file_data                                 \
+                (                                                    \
+                    conns, file_info[4], file_info[5], file_info[4], \
+                    file_info[3]                                     \
+                )
 
             remaining_list, dest_path = self.list_logger.get_file_list()
             if len(remaining_list):
                 for l in remaining_list:
-                    self.fetch_file_data(conns, get_real_path(l), dest_path, l[2:])
+                    self.fetch_file_data                          \
+                    (                                             \
+                        conns, get_real_path(l), dest_path, l[2:] \
+                    )
 
         return
 
@@ -131,16 +145,12 @@ class ClientManager:
         hash = info['hash']
 
         #create the destination path for the new file
-        basename = os.path.basename(root)
-        new_path = dest_path + '/' + orig_path[len(root) - len(basename):]
+        root = root.replace(constants.GENERIC_PATH, os.path.sep)
+        basename = str(Path(root).parent)
+        new_path = ''.join([dest_path, str_diff(orig_path, basename)])
 
-        if not os.path.exists(                                             \
-            new_path[:len(new_path) - (len(os.path.basename(new_path))+1)] \
-        ):
-            os.makedirs(                                        \
-                new_path[:len(new_path) -                       \
-                    (len(os.path.basename(new_path))+1)]        \
-            )
+        if not os.path.exists(str(Path(new_path).parent)):
+            os.makedirs(str(Path(new_path).parent))
         new_file = open(new_path, 'wb')
 
         #request file data
@@ -160,16 +170,15 @@ class ClientManager:
         self.list_logger.clean_log()
         while data:
             new_file.write(data)
-            self.progress_logger.write_to_log                       \
-            (                                                       \
-                file_name=name,                                     \
-                file_size=size,                                     \
-                file_hash=hash,                                     \
-                transferred=log_pos,                                \
-                orig_path=get_generic_path(orig_path[:len(orig_path)-(len(os.path.basename(orig_path))+1)]),  \
-                dest_path=new_path[:len(new_path) -                 \
-                    (len(os.path.basename(new_path))+1)],           \
-                client_conn=client[1]                               \
+            self.progress_logger.write_to_log           \
+            (                                           \
+                file_name=name,                         \
+                file_size=size,                         \
+                file_hash=hash,                         \
+                transferred=log_pos,                    \
+                orig_path=str(Path(orig_path).parent),  \
+                dest_path=str(Path(new_path).parent),   \
+                client_conn=client[1]                   \
             )
             data = client_socket.recv(1024000)
             input("::")
@@ -187,7 +196,7 @@ class ClientManager:
         else:
             self.progress_logger.clean_log()
 
-    def client_transfer_thread(self, client, orig_path, dest_path):
+    def client_transfer_thread(self, client, orig_path, dest_path, pos=0):
         # TODO: Check if there are any uncopied files to finish (once again put holds if there are any problems)
         if orig_path[0] == '1':
             # fetch list of files from server
@@ -216,11 +225,18 @@ class ClientManager:
             )
 
             for f in files:
-                self.fetch_file_data(client, get_real_path(f), dest_path, orig_path[2:])
+                self.fetch_file_data                                   \
+                (                                                      \
+                    client, get_real_path(f), dest_path, orig_path[2:] \
+                )
 
 
         else:
-            self.fetch_file_data(client, get_real_path(orig_path), dest_path, orig_path[2:])
+            self.fetch_file_data                                            \
+            (                                                               \
+                client, get_real_path(orig_path), dest_path, orig_path[2:], \
+                pos                                                         \
+            )
 
         # remove client from busy_clients
         for c in range(0, len(self.busy_clients)):
@@ -229,12 +245,12 @@ class ClientManager:
                 break
 
     @busy_client_check
-    def transfer_data(self, orig_path, dest_path):
+    def transfer_data(self, orig_path, dest_path, pos=0):
         self.busy_clients.append(self.current_client)
         self.transfer_threads[self.current_client] = threading.Thread   \
         (                                                               \
             target=self.client_transfer_thread,                         \
-            args=(self.current_client, orig_path, dest_path)            \
+            args=(self.current_client, orig_path, dest_path, pos)       \
         )
         self.transfer_threads[self.current_client].start()
 

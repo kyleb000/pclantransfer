@@ -14,8 +14,6 @@ class NetworkFolderManager(QWidget):
 
         root_layout = QVBoxLayout()
 
-        self.roots = self.client.get_roots()
-
         list_logger = LogHandler(LogHandler.LOG_FILELIST)
         prog_logger = LogHandler(LogHandler.LOG_FILEPROGRESS)
 
@@ -35,6 +33,7 @@ class NetworkFolderManager(QWidget):
             else:
                 print("Deleting old logs")
 
+        self.roots = self.client.get_roots()
         root_list = self.roots.split('/::/')
 
         for root in root_list:

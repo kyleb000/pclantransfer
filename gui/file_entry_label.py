@@ -5,6 +5,7 @@ from PyQt5.QtGui import QIcon, QPixmap, QDrag, QPainter, QCursor
 from PyQt5.QtCore import Qt, QMimeData, QUrl
 from utils.gui_functions import deleteLayout
 import pickle
+import constants
 
 class FileEntryLabel(QHBoxLayout):
     def __init__(self, file_text, parent):
@@ -20,7 +21,7 @@ class FileEntryLabel(QHBoxLayout):
         self.ico_label.setPixmap(QPixmap(logo_path).scaled(20, 20))
         self.ico_label.show()
 
-        self.root_label = QLabel(file_text.split('/')[1])
+        self.root_label = QLabel(file_text.split(constants.GENERIC_PATH)[1])
         self.root_label.setAccessibleName(file_text)
 
         self.addWidget(self.ico_label)
@@ -42,7 +43,8 @@ class FileEntryLabel(QHBoxLayout):
 
             if len(filenames):
                 dest_dir = filenames[0]
-                #print(self.root_label.accessibleName(), " ", dest_dir)
+                print(self.root_label.accessibleName(), " ", dest_dir)
+                input("::")
                 self.parent.client.transfer_data(self.root_label.accessibleName(), dest_dir)
 
     """def contextMenuEvent(self, event):
